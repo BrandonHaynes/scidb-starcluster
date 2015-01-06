@@ -124,7 +124,7 @@ class SciDBInstaller(DefaultClusterSetup):
         self._execute(master, 'su scidb -c "./run.py make -j{}"'.format(SCIDB_BUILD_THREADS))
 
         log.info('6.3 Local Development')
-        self._execute(master, 'su scidb -c "./run.py install"')
+        self._execute(master, './run.py install -f')
 
         log.info('6.4 Cluster Development: skipping due to make_packages bug')
         log.info('*   Skipping due to make_packages bug :(')
@@ -132,10 +132,11 @@ class SciDBInstaller(DefaultClusterSetup):
         #self._execute(master, 'deployment/deploy.sh scidb_install /tmp/packages {}'.format(dns_names))
 
         log.info('7   Start SciDB')
-        self._execute(master, 'su scidb -c "stage/install/bin/scidb.py startall mydb"')
+        self._execute(master, 'stage/install/bin/scidb.py startall mydb')
 
         log.info('A   Install Shim')
         self._execute(master, 'wget {}'.format(self.shim_uri))
+        self._execute(master, 'ldconfig {}/stage/install/lib'.format(self.directory))        
         self._execute(master, 'gdebi --n shim*.deb')
         
         log.info('End SciDB cluster configuration')
