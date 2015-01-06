@@ -7,8 +7,6 @@ from starcluster.logger import log
 SCIDB_VERSION = 14.8
 SCIDB_REVISION = 8628
 #SCIDB_INSTALL_PATH = '/opt/scidb/$SCIDB_VER'
-SCIDB_BUILD_TYPE = 'RelWithDebInfo'
-SCIDB_BUILD_THREADS = 4
 
 DEFAULT_USERNAME = 'scidb'
 DEFAULT_REPOSITORY = 'https://github.com/BrandonHaynes/scidb.git'
@@ -16,6 +14,8 @@ DEFAULT_BRANCH = None
 DEFAULT_SHIM_PACKAGE_URI = 'https://paradigm4.github.io/shim/shim_14.8_amd64.deb'
 DEFAULT_DIRECTORY = '/mnt/scidb'
 DEFAULT_CLIENTS = '0.0.0.0/0'
+DEFAULT_BUILD_TYPE = 'RelWithDebInfo'
+DEFAULT_BUILD_THREADS = 4
 
 #http://www.scidb.org/forum/viewtopic.php?f=11&t=530
 REQUIRED_PACKAGES = ['build-essential', 'cmake', 'libboost1.48-all-dev', 
@@ -39,7 +39,9 @@ class SciDBInstaller(DefaultClusterSetup):
                  branch=DEFAULT_BRANCH,
                  shim_uri=DEFAULT_SHIM_PACKAGE_URI,
                  directory=DEFAULT_DIRECTORY,
-                 clients=DEFAULT_CLIENTS):
+                 clients=DEFAULT_CLIENTS,
+                 build_type=DEFAULT_BUILD_TYPE,
+                 build_threads=DEFAULT_BUILD_THREADS):
         super(SciDBInstaller, self).__init__()
 
         self.username = username
@@ -49,6 +51,8 @@ class SciDBInstaller(DefaultClusterSetup):
         self.shim_uri = shim_uri
         self.directory = directory
         self.clients = clients
+        self.build_type = build_type
+        self.build_threads = build_threads
 
     def _set_up_node(self, node):
         log.info("1   Begin configuration {}".format(node.alias))
@@ -121,7 +125,7 @@ class SciDBInstaller(DefaultClusterSetup):
         #TODO can probably remove now that we've committed revision
         self._ensure_revision(master)
         self._execute(master, 'su scidb -c "./run.py setup -f"')
-        self._execute(master, 'su scidb -c "./run.py make -j{}"'.format(SCIDB_BUILD_THREADS))
+        self._execute(master, 'su scidb -c "./run.py make -j{}"'.format(self.build_threads))
 
         log.info('6.3 Local Development')
         self._execute(master, './run.py install -f')
@@ -138,7 +142,7 @@ class SciDBInstaller(DefaultClusterSetup):
         self._execute(master, 'wget {}'.format(self.shim_uri))
         self._execute(master, 'ldconfig {}/stage/install/lib'.format(self.directory))        
         self._execute(master, 'gdebi --n shim*.deb')
-        
+s        
         log.info('End SciDB cluster configuration')
 
     def _add_user(self, master, nodes):
@@ -171,7 +175,7 @@ class SciDBInstaller(DefaultClusterSetup):
             #descriptor.write('export PATH=$SCIDB_INSTALL_PATH/bin:$PATH\n')
             descriptor.write('export PATH={}/stage/install/bin:$PATH\n'.format(self.directory))
             descriptor.write('export LD_LIBRARY_PATH={}/stage/install/lib:$LD_LIBRARY_PATH\n'.format(self.directory))
-            descriptor.write('export SCIDB_BUILD_TYPE={}\n'.format(SCIDB_BUILD_TYPE))
+            descriptor.write('export SCIDB_BUILD_TYPE={}\n'.format(self.build_type))
 
     def _ensure_revision(self, node):
         with node.ssh.remote_file(os.path.join(self.directory, 'revision'), 'w') as descriptor:
