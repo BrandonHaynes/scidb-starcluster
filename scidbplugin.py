@@ -142,7 +142,7 @@ class SciDBInstaller(DefaultClusterSetup):
         self._execute(master, 'wget {}'.format(self.shim_uri))
         self._execute(master, 'ldconfig {}/stage/install/lib'.format(self.directory))        
         self._execute(master, 'gdebi --n shim*.deb')
-s        
+        
         log.info('End SciDB cluster configuration')
 
     def _add_user(self, master, nodes):
