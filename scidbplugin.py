@@ -60,6 +60,9 @@ class SciDBInstaller(DefaultClusterSetup):
         log.info('*   Removing source deb http://www.cs.wisc.edu/condor/debian/development lenny contrib')
         node.ssh.execute('sed -i "s/deb http:\/\/www.cs.wisc.edu\/condor\/debian\/development lenny contrib/#deb http:\/\/www.cs.wisc.edu\/condor\/debian\/development lenny contrib/g" /etc/apt/sources.list')
 
+        log.info('*   Adding SciDB directory "{}"'.format(self.directory))
+        self._add_directory(node, self.directory)
+
         log.info('2.1 Installing packages')
         node.apt_install(' '.join(REQUIRED_PACKAGES))
 
@@ -79,15 +82,12 @@ class SciDBInstaller(DefaultClusterSetup):
         log.info('*   Adding SciDB user "{}"'.format(self.username))
         self._add_user(master, nodes)
 
-        log.info('*   Adding SciDB directory "{}"'.format(self.directory))
-        self._add_directory(master, self.directory)
-
         log.info('3   Cloning repository {}'.format(self.repository))
         master.ssh.execute('cd {} && su scidb -c "git clone {} {} {}"'.format(
             self.directory, self.repository, self.directory, 
             '--branch {}'.format(self.branch) if self.branch else ''))
  
-        # I guess the source for Ubuntu 12.04 now requres HTTPS?
+        # I guess the Paradigm4 source for Ubuntu 12.04 now requres HTTPS?
         log.info('*   Fixing register_3rdparty_scidb_repository.sh')
         master.ssh.execute('sed -i "s/http:\/\/downloads.paradigm4.com/https:\/\/downloads.paradigm4.com/g" {}/deployment/common/register_3rdparty_scidb_repository.sh'.format(self.directory))
 
@@ -119,7 +119,7 @@ class SciDBInstaller(DefaultClusterSetup):
 
         log.info('6.1 Environment Variables')
         self._add_environment(master, '/root/.bashrc')
-        self._add_environment(master, '{}/../.bashrc'.format(self.directory))
+        self._add_environment(master, '/home/scidb/.bashrc'.format(self.directory))
 
         log.info('6.2 Build')
         #TODO can probably remove now that we've committed revision
