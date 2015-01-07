@@ -12,14 +12,18 @@ class RegisterPluginDecorator(install):
     def run(self):
         install.run(self)
 
-        config_filename = os.path.join(config_path, 'config')
-        config = self.get_config(config_filename)
-
-        if not self.already_included(config_name, config):
-            print 'Adding include to ' + config_filename
-            self.add_include(config, config_filename)
-
+        self.ensure_include(config_name, config_path)
         self.set_keyname(os.path.join(config_path, config_name))
+
+    def ensure_include(self, name, path, root='config'):
+        filename = os.path.join(path, root)
+        config = self.get_config(filename)
+
+        if not self.already_included(name, config):
+            print 'Adding include to ' + filename
+            self.add_include(config, filename)
+        else:
+            print 'Root configuration already appears to include ' + filename
 
     @staticmethod
     def get_config(path):
