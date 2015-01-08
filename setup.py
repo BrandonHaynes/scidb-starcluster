@@ -23,7 +23,7 @@ class RegisterPluginDecorator(install):
             print 'Adding include to ' + filename
             self.add_include(config, filename)
         else:
-            print 'Root configuration already appears to include ' + filename
+            print 'Root configuration already appears to include ' + config_name
 
     @staticmethod
     def get_config(path):
@@ -58,6 +58,7 @@ class RegisterPluginDecorator(install):
         username = os.getenv("SUDO_USER") or getpass.getuser()
         config = RegisterPluginDecorator.get_config(path)
         config = config.replace('KEYNAME = AWSKey', 'KEYNAME = {}Key'.format(username))
+        print 'Default AWS key is {}Key'.format(username)
         with open(os.path.expanduser(path), 'w') as file:
             file.write(config)
 
