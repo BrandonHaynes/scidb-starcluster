@@ -175,11 +175,12 @@ class SciDBInstaller(DefaultClusterSetup):
         time.sleep(30)
 
         log.info('    * Prepare')
-        self._execute(master, 'deployment/deploy.sh scidb_prepare scidb "{password}" mydb mydb mydb {directory}/db {instances} default {redundancy} {aliases}'.format(
+        self._execute(master, 'deployment/deploy.sh scidb_prepare scidb "{password}" mydb mydb mydb {directory}/db {instances} default {redundancy} {master_alias} {aliases}'.format(
                 instances=self.instances_per_node,
                 redundancy=self.redundancy,
                 password=self.password,
                 directory=self.directory,
+                master_alias=master.alias,
                 aliases=aliases))
 
         log.info('*   Set Postgres Listener')
