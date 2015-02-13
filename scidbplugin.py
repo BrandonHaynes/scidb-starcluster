@@ -174,19 +174,27 @@ class SciDBInstaller(DefaultClusterSetup):
 
         time.sleep(30)
 
-        log.info('    * Prepare')
-        self._execute(master, 'deployment/deploy.sh scidb_prepare scidb "{password}" mydb mydb mydb {directory}/db {instances} default {redundancy} {aliases}'.format(
-                instances=self.instances_per_node,
-                redundancy=self.redundancy,
-                password=self.password,
-                directory=self.directory,
-                aliases=aliases))
-
         log.info('*   Set Postgres Listener')
         [self.pool.simple_job(self._set_postgres_listener, (node, '*'), jobid=node.alias) for node in nodes]
         self.pool.wait(len(nodes))
         [self.pool.simple_job(self._add_host_authentication, (node, 'host all all 0.0.0.0/0 md5'), jobid=node.alias) for node in nodes]
         self.pool.wait(len(nodes))
+
+        log.info('    * Prepare')
+        log.info('deployment/deploy.sh scidb_prepare scidb "{password}" mydb mydb mydb {directory}/db {instances} default {redundancy} {master_alias} {aliases}'.format(
+                instances=self.instances_per_node,
+                redundancy=self.redundancy,
+                password=self.password,
+                directory=self.directory,
+                master_alias=master.alias,
+                aliases=aliases))
+        self._execute(master, 'deployment/deploy.sh scidb_prepare scidb "{password}" mydb mydb mydb {directory}/db {instances} default {redundancy} {master_alias} {aliases}'.format(
+                instances=self.instances_per_node,
+                redundancy=self.redundancy,
+                password=self.password,
+                directory=self.directory,
+                master_alias=master.alias,
+                aliases=aliases))
 
         log.info('7   Start SciDB')
         log.info('    * Initialize Catalogs')
