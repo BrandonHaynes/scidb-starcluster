@@ -74,6 +74,9 @@ class SciDBInstaller(DefaultClusterSetup):
         self._add_directory(node, self.directory)
         time.sleep(30)
 
+        log.info('*   Add swap file on node {}'.format(node.alias))
+        self._add_swapfile(node)
+
         log.info('*   Setting home directory owner to scidb on node {}'.format(node.alias))
         node.ssh.execute('chown -R scidb /home/scidb')
         node.ssh.execute('chmod 700 /home/scidb/.ssh')
@@ -118,7 +121,6 @@ class SciDBInstaller(DefaultClusterSetup):
         self._execute(master, 'deployment/deploy.sh prepare_toolchain {}'.format(master.alias))
 
         log.info('4.4 Coordinator')
-        self._add_swapfile(master)
         self._execute(master, 'deployment/deploy.sh prepare_coordinator {}'.format(master.alias))
 
         log.info('End SciDB node configuration')
