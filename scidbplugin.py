@@ -77,17 +77,22 @@ class SciDBInstaller(DefaultClusterSetup):
         log.info('*   Add swap file on node {}'.format(node.alias))
         self._add_swapfile(node)
 
-        log.info('*   Setting home directory owner to scidb on node {}'.format(node.alias))
-        node.ssh.execute('chown -R scidb /home/scidb')
-        node.ssh.execute('chmod 700 /home/scidb/.ssh')
-        #log.info('*   Cleaning up scidb user on nodesEnsuring passwordless SSH for node "{}"'.format(node.alias))
-        #node.ssh.execute("su scidb -c 'ssh -o StrictHostKeyChecking=no {} ls'".format(master.alias))
-
         log.info('2.1 Installing packages')
         node.apt_install(' '.join(REQUIRED_PACKAGES))
 
         log.info('2.2 Configure and start the SSH server')
         node.ssh.execute('sudo service ssh restart')
+
+    def _set_ownership(self, master, node):
+        log.info('*   Setting home directory owner to scidb on node {}'.format(node.alias))
+        try:
+          node.ssh.execute('chown -R scidb /home/scidb')
+          node.ssh.execute('chmod 700 /home/scidb/.ssh')
+        except RemoteCommandFailed as e:
+          if node == master:
+            pass
+          else:
+            raise e
 
     def run(self, nodes, master, user, user_shell, volumes):
         super(SciDBInstaller, self).run(nodes, master, user, user_shell, volumes)
@@ -101,6 +106,9 @@ class SciDBInstaller(DefaultClusterSetup):
         time.sleep(90)
 
         [self.pool.simple_job(self._set_up_node, (master, node), jobid=node.alias) for node in nodes]
+        self.pool.wait(len(nodes))
+
+        [self.pool.simple_job(self._set_ownership, (master, node), jobid=node.alias) for node in nodes]
         self.pool.wait(len(nodes))
 
         log.info('3   Cloning repository {}'.format(self.repository))
@@ -118,6 +126,7 @@ class SciDBInstaller(DefaultClusterSetup):
         log.info('4.2 N/A')
 
         log.info('4.3 Toolchain')
+        time.sleep(60)
         self._execute(master, 'deployment/deploy.sh prepare_toolchain {}'.format(master.alias))
 
         log.info('4.4 Coordinator')
@@ -240,8 +249,6 @@ class SciDBInstaller(DefaultClusterSetup):
         node.ssh.execute('sudo swapon /mnt/swapfile')
 
     def _add_environment(self, node, path):
-        log.info('TODO {}'.format(path))
-
         with node.ssh.remote_file(path, 'a') as descriptor:
             descriptor.write('export SCIDB_VER={}\n'.format(SCIDB_VERSION))
             #descriptor.write('export SCIDB_INSTALL_PATH={}\n'.format(SCIDB_INSTALL_PATH))
