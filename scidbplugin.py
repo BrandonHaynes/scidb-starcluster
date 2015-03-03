@@ -3,6 +3,7 @@ import time
 import random
 import string
 from starcluster.clustersetup import DefaultClusterSetup
+from starcluster.exception import RemoteCommandFailed
 from starcluster.logger import log
 
 SCIDB_VERSION = 14.8
@@ -19,26 +20,26 @@ DEFAULT_CLIENTS = '0.0.0.0/0'
 DEFAULT_BUILD_TYPE = 'RelWithDebInfo'
 DEFAULT_BUILD_THREADS = 4
 
-DEFAULT_REDUNDANCY = 1
+DEFAULT_REDUNDANCY = 0
 DEFAULT_INSTANCES_PER_NODE = 1
 
 # http://www.scidb.org/forum/viewtopic.php?f=11&t=530
 # Documentation specified Postgres 8.4; I moved to 9.1
-REQUIRED_PACKAGES = ['build-essential', 'cmake', 'libboost1.48-all-dev', 
-                     'postgresql-9.1', 'libpqxx-3.1', 'libpqxx3-dev', 
-                     'libprotobuf7', 'libprotobuf-dev', 'protobuf-compiler', 
-                     'doxygen', 'flex', 'bison', 'libxerces-c-dev', 
-                     'libxerces-c3.1', 'liblog4cxx10', 'liblog4cxx10-dev', 
-                     'libcppunit-1.12-1', 'libcppunit-dev', 'libbz2-dev', 
-                     'postgresql-contrib-9.1', 'libconfig++8', 
-                     'libconfig++8-dev', 'libconfig8-dev', 'subversion', 
-                     'libreadline6-dev', 'libreadline6', 'python-paramiko', 
+REQUIRED_PACKAGES = ['build-essential', 'cmake', 'libboost1.48-all-dev',
+                     'postgresql-9.1', 'libpqxx-3.1', 'libpqxx3-dev',
+                     'libprotobuf7', 'libprotobuf-dev', 'protobuf-compiler',
+                     'doxygen', 'flex', 'bison', 'libxerces-c-dev',
+                     'libxerces-c3.1', 'liblog4cxx10', 'liblog4cxx10-dev',
+                     'libcppunit-1.12-1', 'libcppunit-dev', 'libbz2-dev',
+                     'postgresql-contrib-9.1', 'libconfig++8',
+                     'libconfig++8-dev', 'libconfig8-dev', 'subversion',
+                     'libreadline6-dev', 'libreadline6', 'python-paramiko',
                      'python-crypto', 'xsltproc', 'liblog4cxx10-dev',
                      'subversion', 'expect', 'openssh-server', 'openssh-client',
                      'git-svn', 'gdebi'] # Shim uses gdebi
 
 class SciDBInstaller(DefaultClusterSetup):
-    def __init__(self, 
+    def __init__(self,
                  username=DEFAULT_USERNAME,
                  password=''.join(random.sample(string.lowercase+string.digits, 20)),
                  repository=DEFAULT_REPOSITORY,
@@ -89,7 +90,7 @@ class SciDBInstaller(DefaultClusterSetup):
           node.ssh.execute('chown -R scidb /home/scidb')
           node.ssh.execute('chmod 700 /home/scidb/.ssh')
         except RemoteCommandFailed as e:
-          if node == master:
+          if node != master:
             pass
           else:
             raise e
@@ -113,9 +114,9 @@ class SciDBInstaller(DefaultClusterSetup):
 
         log.info('3   Cloning repository {}'.format(self.repository))
         master.ssh.execute('cd {} && su scidb -c "git clone {} {} {}"'.format(
-            self.directory, self.repository, self.directory, 
+            self.directory, self.repository, self.directory,
             '--branch {}'.format(self.branch) if self.branch else ''))
- 
+
         # I guess the Paradigm4 source for Ubuntu 12.04 now requres HTTPS?
         log.info('*   Fixing register_3rdparty_scidb_repository.sh')
         master.ssh.execute('sed -i "s/http:\/\/downloads.paradigm4.com/https:\/\/downloads.paradigm4.com/g" {}/deployment/common/register_3rdparty_scidb_repository.sh'.format(self.directory))
@@ -215,7 +216,7 @@ class SciDBInstaller(DefaultClusterSetup):
 
         log.info('A   Install Shim')
         self._execute(master, 'wget {}'.format(self.shim_uri))
-        self._execute(master, 'ldconfig {}/stage/install/lib'.format(self.directory))        
+        self._execute(master, 'ldconfig {}/stage/install/lib'.format(self.directory))
         self._execute(master, 'gdebi --n shim*.deb')
         #TODO set shim temporary directory to /mnt/tmp in /var/lib/shim/conf
 
@@ -228,7 +229,7 @@ class SciDBInstaller(DefaultClusterSetup):
     def _add_user(self, master, nodes):
         uid, gid = self._get_new_user_id(self.username)
         map(lambda node: self.pool.simple_job(self.__add_user_to_node, (uid, gid, node), jobid=node.alias), nodes)
-        self.pool.wait(numtasks=len(nodes))        
+        self.pool.wait(numtasks=len(nodes))
         #self._setup_cluster_user(self.username)
         master.generate_key_for_user(self.username, auth_new_key=True, auth_conn_key=True)
         master.add_to_known_hosts(self.username, nodes)
@@ -266,8 +267,8 @@ class SciDBInstaller(DefaultClusterSetup):
         # Awesome!  SciDB has hardcoded paths (/opt/scidb/*)
         node.ssh.execute('mkdir -p /opt/scidb/{}'.format(SCIDB_VERSION))
         master.ssh.execute('scp -r {directory}/stage/build/debian/scidb-{version}-plugins{directory}/stage/install/* {alias}:/opt/scidb/{version}'.format(
-            directory=self.directory, 
-            alias=node.alias, 
+            directory=self.directory,
+            alias=node.alias,
             version=SCIDB_VERSION))
 
     def _copy_deployment(self, master, node):
