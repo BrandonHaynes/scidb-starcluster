@@ -75,9 +75,6 @@ class SciDBInstaller(DefaultClusterSetup):
         self._add_directory(node, self.directory)
         time.sleep(30)
 
-        log.info('*   Add swap file on node {}'.format(node.alias))
-        self._add_swapfile(node)
-
         log.info('2.1 Installing packages')
         node.apt_install(' '.join(REQUIRED_PACKAGES))
 
@@ -131,6 +128,7 @@ class SciDBInstaller(DefaultClusterSetup):
         self._execute(master, 'deployment/deploy.sh prepare_toolchain {}'.format(master.alias))
 
         log.info('4.4 Coordinator')
+        self._add_swapfile(master)
         self._execute(master, 'deployment/deploy.sh prepare_coordinator {}'.format(master.alias))
 
         log.info('End SciDB node configuration')
@@ -186,27 +184,19 @@ class SciDBInstaller(DefaultClusterSetup):
 
         time.sleep(30)
 
+        log.info('    * Prepare')
+        self._execute(master, 'deployment/deploy.sh scidb_prepare scidb "{password}" mydb mydb mydb {directory}/db {instances} default {redundancy} {aliases}'.format(
+                instances=self.instances_per_node,
+                redundancy=self.redundancy,
+                password=self.password,
+                directory=self.directory,
+                aliases=aliases))
+
         log.info('*   Set Postgres Listener')
         [self.pool.simple_job(self._set_postgres_listener, (node, '*'), jobid=node.alias) for node in nodes]
         self.pool.wait(len(nodes))
         [self.pool.simple_job(self._add_host_authentication, (node, 'host all all 0.0.0.0/0 md5'), jobid=node.alias) for node in nodes]
         self.pool.wait(len(nodes))
-
-        log.info('    * Prepare')
-        log.info('deployment/deploy.sh scidb_prepare scidb "{password}" mydb mydb mydb {directory}/db {instances} default {redundancy} {master_alias} {aliases}'.format(
-                instances=self.instances_per_node,
-                redundancy=self.redundancy,
-                password=self.password,
-                directory=self.directory,
-                master_alias=master.alias,
-                aliases=aliases))
-        self._execute(master, 'deployment/deploy.sh scidb_prepare scidb "{password}" mydb mydb mydb {directory}/db {instances} default {redundancy} {master_alias} {aliases}'.format(
-                instances=self.instances_per_node,
-                redundancy=self.redundancy,
-                password=self.password,
-                directory=self.directory,
-                master_alias=master.alias,
-                aliases=aliases))
 
         log.info('7   Start SciDB')
         log.info('    * Initialize Catalogs')
@@ -218,7 +208,6 @@ class SciDBInstaller(DefaultClusterSetup):
         self._execute(master, 'wget {}'.format(self.shim_uri))
         self._execute(master, 'ldconfig {}/stage/install/lib'.format(self.directory))
         self._execute(master, 'gdebi --n shim*.deb')
-        #TODO set shim temporary directory to /mnt/tmp in /var/lib/shim/conf
 
         log.info('B   Install SciDB-Py')
         master.ssh.execute('pip install requests')
